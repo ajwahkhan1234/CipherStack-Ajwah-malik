@@ -32,6 +32,10 @@ start cipherstack.html      # Windows
 
 ## Deploy in 30 Seconds
 
+**Deployed Link Preview:**
+1. Go to : https://darkgreen-fox-338032.hostingersite.com/
+
+
 **Netlify drag-and-drop:**
 1. Go to [app.netlify.com/drop](https://app.netlify.com/drop)
 2. Drag `cipherstack.html` onto the page — done.

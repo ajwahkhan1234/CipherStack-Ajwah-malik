@@ -2,7 +2,6 @@
 
 > **Node-based cascade encryption builder — runs 100% in the browser, zero dependencies, zero build step.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Single File](https://img.shields.io/badge/delivery-single%20HTML%20file-orange)](cipherstack.html)
 
 ---
@@ -196,6 +195,3 @@ Uses **Gemini 2.5 Flash** (Google's free-tier model, 500 req/day).
 
 ---
 
-## License
-
-MIT

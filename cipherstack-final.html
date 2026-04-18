@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CipherStack — Cascade Encryption Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#dde8ef; --surface:#e8f0f5; --card:#ffffff; --card-alt:#f4f8fb;
+  --border:#c8d8e4; --border-mid:#b0c8d8;
+  --teal:#2a8fa8; --teal-dark:#1e7a92; --teal-light:#e8f5f8; --teal-mid:#5aacbf;
+  --navy:#2c4a6e; --text:#1a2e3d; --text-mid:#4a6070; --text-dim:#8aaabb;
+  --green:#22c55e; --red:#ef4444; --yellow:#f59e0b; --node-conn:#4db8cc;
+  --ai-purple:#7c3aed; --ai-purple-light:#ede9fe; --ai-purple-mid:#a78bfa;
+  --mono:'JetBrains Mono',monospace; --ui:'Inter',sans-serif;
+  --r:10px; --r-sm:6px;
+  --shadow:0 2px 8px rgba(30,80,110,0.12); --shadow-md:0 4px 16px rgba(30,80,110,0.16);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:var(--ui);background:var(--bg);color:var(--text);overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* ═══ TOP NAV ═══ */
+#topnav{
+  display:flex;align-items:center;gap:0;
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:0 18px;height:68px;flex-shrink:0;z-index:100;
+  box-shadow:0 1px 6px rgba(30,80,110,0.1);
+}
+.nav-logo{display:flex;align-items:center;margin-right:24px;cursor:pointer;}
+.nav-logo img{height:48px;object-fit:contain;transition:transform 0.2s;}
+.nav-logo img:hover{transform:scale(1.04);}
+.nav-logo-fallback{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800;color:var(--teal-dark);letter-spacing:-0.5px;}
+.nav-links{display:flex;gap:2px;margin-right:auto;}
+.nav-link{padding:6px 14px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text-mid);cursor:pointer;transition:all 0.15s;border:none;background:none;}
+.nav-link:hover{background:var(--teal-light);color:var(--teal-dark);}
+.nav-link.active{color:var(--teal-dark);font-weight:600;}
+
+/* AI button in nav */
+.nav-ai-btn{
+  display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;
+  background:linear-gradient(135deg,var(--ai-purple),#6d28d9);color:#fff;
+  border:none;font-size:12px;font-weight:700;cursor:pointer;
+  box-shadow:0 2px 10px rgba(124,58,237,0.35);transition:all 0.2s;
+  margin-right:10px;letter-spacing:0.2px;
+}
+.nav-ai-btn:hover{box-shadow:0 4px 18px rgba(124,58,237,0.5);transform:translateY(-1px);}
+.nav-ai-btn .ai-dot{width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:aidot 1.5s ease-in-out infinite;}
+@keyframes aidot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}
+
+.mode-pill{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:4px 14px 4px 16px;font-size:13px;font-weight:700;letter-spacing:0.3px;}
+.mode-pill .enc-lbl{color:var(--text);transition:color 0.2s;}
+.mode-pill .dec-lbl{color:var(--text-dim);transition:color 0.2s;}
+.mode-pill.decrypt-mode .enc-lbl{color:var(--text-dim);}
+.mode-pill.decrypt-mode .dec-lbl{color:var(--teal);}
+.toggle-switch{position:relative;width:44px;height:24px;cursor:pointer;}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-track{position:absolute;inset:0;border-radius:12px;background:linear-gradient(90deg,var(--green) 0%,var(--teal) 100%);transition:background 0.2s;}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.toggle-switch input:checked~.toggle-thumb{transform:translateX(20px);}
+
+.nav-actions{display:flex;gap:8px;margin-left:16px;}
+.nav-btn{padding:7px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);transition:all 0.15s;font-family:var(--ui);}
+.nav-btn:hover{background:var(--surface);border-color:var(--border-mid);}
+.nav-btn.primary{background:var(--teal);border-color:var(--teal-dark);color:#fff;box-shadow:0 2px 8px rgba(42,143,168,0.3);}
+.nav-btn.primary:hover{background:var(--teal-dark);box-shadow:0 2px 14px rgba(42,143,168,0.45);}
+.nav-btn.primary:disabled{background:#aacccc;border-color:#aacccc;cursor:not-allowed;box-shadow:none;}
+#run-btn.running{animation:runpulse 0.9s infinite;}
+@keyframes runpulse{0%,100%{box-shadow:0 2px 8px rgba(42,143,168,0.3);}50%{box-shadow:0 2px 22px rgba(42,143,168,0.65);}}
+
+/* ═══ BODY ═══ */
+#body-row{display:flex;flex:1;overflow:hidden;}
+
+/* ═══ LEFT SIDEBAR ═══ */
+#sidebar{width:265px;min-width:265px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:10;}
+#sidebar::-webkit-scrollbar{width:4px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:2px;}
+.sb-section{padding:14px 14px 10px;}
+.sb-section-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;}
+.sb-add-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--teal);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.sb-add-btn:hover{background:var(--teal);color:#fff;}
+.algo-item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r-sm);cursor:pointer;transition:all 0.15s;border:1px solid transparent;margin-bottom:3px;background:var(--card-alt);}
+.algo-item:hover{background:var(--teal-light);border-color:rgba(42,143,168,0.2);transform:translateX(2px);}
+.algo-item:active{transform:scale(0.98);}
+.algo-icon{width:26px;height:26px;border-radius:5px;background:var(--teal-light);border:1px solid rgba(42,143,168,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--teal-dark);flex-shrink:0;}
+.algo-name{flex:1;font-size:12px;font-weight:500;color:var(--text);}
+.algo-plus{width:18px;height:18px;border-radius:4px;background:rgba(42,143,168,0.12);border:none;color:var(--teal);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;}
+.algo-plus:hover{background:var(--teal);color:#fff;}
+.sb-divider{height:1px;background:var(--border);margin:6px 14px;}
+.sb-ctrl-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text);padding:12px 14px 8px;text-transform:uppercase;letter-spacing:0.5px;}
+.sb-ctrl-list{padding:0 10px 12px;}
+.sb-ctrl-btn{width:100%;padding:7px 10px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--card-alt);color:var(--text-mid);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--ui);display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.sb-ctrl-btn:hover{background:var(--teal-light);border-color:var(--border-mid);color:var(--teal-dark);}
+.sb-ctrl-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ═══ CANVAS ═══ */
+#canvas{flex:1;overflow:hidden;position:relative;background-color:var(--surface);background-image:radial-gradient(circle,#b8cdd8 1px,transparent 1px);background-size:22px 22px;display:flex;flex-direction:column;}
+#canvas-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 24px 60px;display:flex;flex-direction:column;align-items:center;}
+#canvas-inner::-webkit-scrollbar{width:6px;}
+#canvas-inner::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+#empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:14px;padding:60px;text-align:center;width:100%;}
+#empty-state .ei{font-size:56px;opacity:0.3;animation:floatemoji 3s ease-in-out infinite;}
+@keyframes floatemoji{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+#empty-state h3{font-size:17px;font-weight:700;color:var(--text-mid);}
+#empty-state p{font-size:13px;line-height:1.7;max-width:280px;}
+.empty-hint{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.empty-chip{padding:5px 12px;border-radius:20px;background:#fff;border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--teal);cursor:pointer;transition:all 0.15s;}
+.empty-chip:hover{background:var(--teal);color:#fff;border-color:var(--teal);}
+.node-warn-bar{padding:7px 20px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);font-size:12px;color:var(--red);text-align:center;display:none;flex-shrink:0;font-weight:500;}
+.node-warn-bar.show{display:block;}
+#canvas-footer{position:absolute;bottom:0;left:0;right:0;padding:10px 20px;display:flex;align-items:center;justify-content:flex-end;background:linear-gradient(to top,rgba(220,232,240,0.95) 60%,transparent);pointer-events:none;}
+.encrypt-badge{font-size:13px;font-weight:600;color:var(--teal);display:flex;align-items:center;gap:6px;}
+
+/* ═══ PIPELINE ═══ */
+.pipeline-flow{display:flex;flex-direction:column;align-items:center;width:100%;max-width:760px;}
+.input-node{background:#fff;border:2px solid var(--teal-mid);border-radius:var(--r);padding:10px 16px;width:200px;text-align:center;box-shadow:var(--shadow);position:relative;animation:fadeUp 0.3s ease-out;}
+.input-node .in-title{font-size:11px;font-weight:700;color:var(--teal-dark);letter-spacing:1px;text-transform:uppercase;}
+.input-node .in-ports{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-dim);}
+
+/* ═══════════════════════════════════════════════════
+   CIPHER NODE  — polished, no overflow, impressive
+═══════════════════════════════════════════════════ */
+
+/* Staggered entry animation variable set per-node via JS */
+.node-card{
+  background:#fff;
+  border:1.5px solid var(--border);
+  border-radius:14px;
+  box-shadow:0 2px 12px rgba(30,80,110,0.1),0 1px 3px rgba(30,80,110,0.06);
+  overflow:hidden;   /* ← KEY FIX: clip children, no overflow */
+  width:320px;
+  position:relative;
+  transition:border-color 0.25s,box-shadow 0.25s,transform 0.2s;
+  animation:nodeEntry 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  animation-delay:var(--nd,0ms);
+}
+.node-card:hover{
+  box-shadow:0 6px 24px rgba(42,143,168,0.18),0 2px 8px rgba(30,80,110,0.1);
+  transform:translateY(-2px);
+  border-color:var(--teal-mid);
+}
+.node-card.has-error{
+  border-color:var(--red)!important;
+  box-shadow:0 0 0 3px rgba(239,68,68,0.12),0 4px 16px rgba(239,68,68,0.2)!important;
+}
+.node-card.just-added{
+  animation:popIn 0.45s cubic-bezier(0.175,0.885,0.32,1.275) both;
+}
+.node-card.run-flash{
+  animation:runFlash 0.6s ease-out;
+}
+
+@keyframes nodeEntry{
+  0%{opacity:0;transform:translateY(16px) scale(0.97);}
+  60%{opacity:1;}
+  100%{opacity:1;transform:translateY(0) scale(1);}
+}
+@keyframes popIn{
+  0%{opacity:0;transform:scale(0.8) translateY(8px);}
+  70%{transform:scale(1.03) translateY(-2px);}
+  100%{opacity:1;transform:scale(1) translateY(0);}
+}
+@keyframes runFlash{
+  0%{box-shadow:0 0 0 0 rgba(42,143,168,0);}
+  30%{box-shadow:0 0 0 6px rgba(42,143,168,0.35);}
+  100%{box-shadow:0 2px 12px rgba(30,80,110,0.1);}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(-12px);}to{opacity:1;transform:translateY(0);}}
+
+/* Node header — rich gradient with shimmer */
+.node-header{
+  background:linear-gradient(135deg,#2ea0bb 0%,#1a7a94 60%,#155f74 100%);
+  padding:10px 13px;display:flex;align-items:center;gap:8px;
+  position:relative;overflow:hidden;
+}
+.node-header::after{
+  content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);
+  transition:left 0.5s;
+}
+.node-card:hover .node-header::after{left:150%;}
+
+.node-hdr-num{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.35);
+  font-size:11px;font-weight:800;color:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.node-hdr-name{flex:1;font-size:13px;font-weight:700;color:#fff;letter-spacing:0.2px;}
+.node-hdr-type{
+  font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:10px;color:rgba(255,255,255,0.9);
+}
+.node-hdr-actions{display:flex;gap:3px;margin-left:4px;}
+.node-hdr-btn{
+  width:22px;height:22px;border-radius:5px;border:none;
+  background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);
+  cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.node-hdr-btn:hover{background:rgba(255,255,255,0.3);color:#fff;}
+.node-hdr-btn.del:hover{background:rgba(239,68,68,0.6);color:#fff;}
+
+/* Port dots — positioned on header bottom edge */
+.port-in-card{
+  position:absolute;left:-7px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  border:2.5px solid var(--node-conn);z-index:2;
+  box-shadow:0 0 0 3px rgba(77,184,204,0.2);
+}
+.port-out-card{
+  position:absolute;right:-7px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  border:2.5px solid var(--node-conn);z-index:2;
+  box-shadow:0 0 0 3px rgba(77,184,204,0.2);
+}
+
+/* Node body */
+.node-body{padding:11px 13px 12px;display:flex;flex-direction:column;gap:8px;}
+
+/* Config inputs */
+.cfg-block{display:flex;flex-direction:column;gap:6px;}
+.cfg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cfg-label-txt{font-size:11px;color:var(--text-mid);font-weight:600;white-space:nowrap;letter-spacing:0.2px;}
+.cfg-input{
+  background:var(--card-alt);border:1.5px solid var(--border);border-radius:var(--r-sm);
+  color:var(--text);padding:6px 10px;font-size:12px;font-family:var(--mono);
+  outline:none;transition:border-color 0.2s,box-shadow 0.2s;flex:1;min-width:0;width:100%;
+}
+.cfg-input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,143,168,0.1);background:#fff;}
+.cfg-input-select{
+  background:var(--card-alt);border:1.5px solid var(--border);border-radius:var(--r-sm);
+  color:var(--text);padding:6px 10px;font-size:12px;font-family:var(--mono);
+  outline:none;cursor:pointer;transition:border-color 0.2s;
+}
+.cfg-input-select:focus{border-color:var(--teal);}
+.cfg-slider-row{display:flex;align-items:center;gap:8px;}
+.cfg-slider{
+  flex:1;-webkit-appearance:none;height:5px;border-radius:3px;
+  background:linear-gradient(to right,var(--teal) 0%,var(--teal) var(--pct,50%),var(--border) var(--pct,50%),var(--border) 100%);
+  outline:none;cursor:pointer;
+}
+.cfg-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+  background:#fff;border:2.5px solid var(--teal);
+  box-shadow:0 1px 6px rgba(42,143,168,0.3);transition:transform 0.15s;
+}
+.cfg-slider::-webkit-slider-thumb:hover{transform:scale(1.2);}
+.cfg-num-disp{
+  width:46px;height:28px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  text-align:center;font-size:12px;font-family:var(--mono);
+  background:var(--card-alt);color:var(--text);outline:none;
+}
+
+/* ── IO display boxes — THE FIX ──
+   Each box is full-width stacked, text wraps inside,
+   no side-by-side overflow possible. */
+.io-section{
+  display:flex;flex-direction:column;gap:5px;
+  border-top:1px solid var(--border);
+  padding-top:8px;margin-top:2px;
+}
+.io-box{
+  width:100%;
+  background:var(--card-alt);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  padding:6px 10px;
+  position:relative;
+  transition:border-color 0.2s,background 0.2s;
+  overflow:hidden;   /* ← clip text inside box */
+}
+.io-box.live{
+  background:linear-gradient(135deg,rgba(232,245,248,0.8),rgba(240,250,252,0.9));
+  border-color:rgba(42,143,168,0.3);
+}
+.io-box-label{
+  display:flex;align-items:center;gap:5px;
+  font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:3px;
+}
+.io-box-label .io-pip{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+}
+.io-pip-in{background:rgba(42,143,168,0.5);}
+.io-pip-out{background:var(--teal);}
+.io-box.live .io-pip-out{
+  background:var(--teal);
+  box-shadow:0 0 0 2px rgba(42,143,168,0.2);
+  animation:pipPulse 1.5s ease-in-out 3;
+}
+@keyframes pipPulse{0%,100%{box-shadow:0 0 0 2px rgba(42,143,168,0.2);}50%{box-shadow:0 0 0 4px rgba(42,143,168,0.35);}}
+.io-box-val{
+  font-size:11px;font-family:var(--mono);color:var(--text-dim);
+  word-break:break-all;white-space:normal;     /* ← wraps inside box */
+  line-height:1.45;
+  max-height:52px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+}
+.io-box.live .io-box-val{
+  color:var(--teal-dark);font-weight:500;
+}
+.io-copy-mini{
+  position:absolute;top:5px;right:5px;
+  width:18px;height:18px;border-radius:4px;border:none;
+  background:rgba(42,143,168,0.1);color:var(--teal);
+  font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 0.15s,background 0.15s;
+}
+.io-box:hover .io-copy-mini{opacity:1;}
+.io-copy-mini:hover{background:var(--teal);color:#fff;}
+
+/* Data flow animation on run */
+.io-box.animating{
+  animation:dataFlow 0.5s ease-out;
+}
+@keyframes dataFlow{
+  0%{border-color:rgba(42,143,168,0.8);box-shadow:0 0 0 3px rgba(42,143,168,0.15);}
+  100%{border-color:rgba(42,143,168,0.3);box-shadow:none;}
+}
+
+.node-err{
+  background:rgba(239,68,68,0.07);border:1.5px solid rgba(239,68,68,0.25);
+  border-radius:var(--r-sm);padding:6px 9px;font-size:11px;color:var(--red);
+  font-family:var(--mono);display:none;word-break:break-word;line-height:1.4;
+}
+
+/* ═══ TERMINAL NODES ═══ */
+.input-node{
+  background:#fff;border:2px solid var(--teal-mid);border-radius:12px;
+  padding:11px 18px;width:220px;text-align:center;
+  box-shadow:0 2px 12px rgba(42,143,168,0.15);position:relative;
+  animation:fadeUp 0.35s ease-out;
+}
+.input-node .in-title{
+  font-size:11px;font-weight:800;color:var(--teal-dark);
+  letter-spacing:1.5px;text-transform:uppercase;
+}
+.input-node .in-preview{
+  margin-top:4px;font-size:11px;font-family:var(--mono);color:var(--text-dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;
+}
+
+.final-node{
+  background:linear-gradient(135deg,#2ea0bb 0%,#1a7a94 100%);
+  border-radius:12px;padding:12px 20px;
+  text-align:center;
+  box-shadow:0 6px 24px rgba(42,143,168,0.4),0 2px 8px rgba(42,143,168,0.2);
+  width:220px;position:relative;animation:fadeUp 0.35s ease-out 0.1s both;
+  overflow:hidden;
+}
+.final-node::before{
+  content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+  background:radial-gradient(circle at 60% 40%,rgba(255,255,255,0.08),transparent 60%);
+  pointer-events:none;
+}
+.final-node .fn-title{
+  font-size:11px;font-weight:800;color:rgba(255,255,255,0.7);
+  letter-spacing:1.5px;text-transform:uppercase;
+}
+.final-node .fn-vals{
+  margin-top:5px;font-size:11px;font-family:var(--mono);color:#fff;
+  word-break:break-all;line-height:1.4;
+}
+.port-in{
+  position:absolute;left:-7px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  border:2.5px solid rgba(255,255,255,0.8);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.2);
+}
+
+/* ═══ CONNECTOR — more polished ═══ */
+.connector-wrap{width:320px;height:44px;position:relative;}
+.connector-svg{width:100%;height:44px;overflow:visible;display:block;}
+.conn-path{
+  fill:none;stroke:var(--node-conn);stroke-width:2;
+  stroke-dasharray:6 3;animation:dashflow 1s linear infinite;
+  opacity:0.8;
+}
+.conn-dot-anim{
+  fill:var(--teal-dark);
+  filter:drop-shadow(0 0 4px rgba(42,143,168,0.8));
+}
+@keyframes dashflow{to{stroke-dashoffset:-18;}}
+
+/* ═══ RIGHT PANEL ═══ */
+#right-panel{width:295px;min-width:295px;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:10;}
+#right-panel::-webkit-scrollbar{width:4px;}
+#right-panel::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:2px;}
+.rp-section{padding:13px 14px;border-bottom:1px solid var(--border);}
+.rp-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text);margin-bottom:9px;text-transform:uppercase;letter-spacing:0.4px;}
+.rp-hd-icons{display:flex;gap:5px;}
+.rp-icon{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text-mid);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;}
+.rp-icon:hover{background:var(--teal-light);color:var(--teal);}
+.rp-textarea{width:100%;background:var(--card-alt);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:9px 11px;font-size:12px;font-family:var(--mono);outline:none;resize:vertical;min-height:100px;transition:border-color 0.15s;line-height:1.55;}
+.rp-textarea:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(42,143,168,0.1);}
+.rp-clear-btn{margin-top:7px;padding:5px 11px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-mid);font-size:12px;cursor:pointer;transition:all 0.15s;font-family:var(--ui);font-weight:500;float:right;}
+.rp-clear-btn:hover{background:var(--teal-light);color:var(--teal);}
+.output-field{background:var(--card-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;font-size:12px;font-family:var(--mono);min-height:42px;color:var(--text-dim);word-break:break-all;white-space:pre-wrap;line-height:1.5;}
+.output-field.live{color:var(--teal-dark);}
+.rp-copy-btn{margin-top:7px;width:100%;padding:8px;border-radius:var(--r-sm);background:var(--teal);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--ui);}
+.rp-copy-btn:hover{background:var(--teal-dark);}
+.intermed-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;padding:11px 14px;border-bottom:1px solid var(--border);user-select:none;text-transform:uppercase;letter-spacing:0.4px;}
+.intermed-hd:hover{background:var(--surface);}
+.intermed-chevron{font-size:12px;color:var(--text-dim);transition:transform 0.2s;}
+.intermed-chevron.open{transform:rotate(180deg);}
+#intermed-body{display:flex;flex-direction:column;}
+.intermed-table{width:100%;border-collapse:collapse;font-size:11px;}
+.intermed-table th{padding:5px 12px;background:var(--card-alt);font-size:10px;font-weight:600;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border);}
+.intermed-table td{padding:5px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text-mid);vertical-align:top;}
+.intermed-table td:first-child{font-family:var(--ui);font-weight:600;color:var(--text);width:80px;}
+.intermed-table td:last-child{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{padding:4px 9px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--mono);text-transform:uppercase;}
+.badge-pass{background:rgba(34,197,94,0.12);color:var(--green);border:1px solid rgba(34,197,94,0.3);}
+.badge-fail{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.25);}
+.tip-wrap{position:relative;}
+.tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:200;}
+.tip-wrap:hover .tip{opacity:1;}
+
+/* ═══ AI ASSISTANT PANEL ═══ */
+#ai-panel{
+  position:fixed;bottom:20px;right:24px;width:380px;
+  background:#fff;border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 8px 40px rgba(30,80,110,0.18),0 2px 12px rgba(124,58,237,0.12);
+  z-index:1000;display:flex;flex-direction:column;overflow:hidden;
+  transition:all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+  transform-origin:bottom right;
+}
+#ai-panel.hidden{transform:scale(0.1) translateY(60px);opacity:0;pointer-events:none;}
+#ai-panel.minimized{height:54px;}
+.ai-header{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  background:linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%);
+  cursor:pointer;flex-shrink:0;
+}
+.ai-avatar{
+  width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  animation:aiavatar 2s ease-in-out infinite;
+}
+@keyframes aiavatar{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.3);}50%{box-shadow:0 0 0 6px rgba(255,255,255,0);}}
+.ai-title{flex:1;font-size:13px;font-weight:700;color:#fff;}
+.ai-subtitle{font-size:10px;color:rgba(255,255,255,0.65);}
+.ai-header-btns{display:flex;gap:5px;}
+.ai-hbtn{width:24px;height:24px;border-radius:4px;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
+.ai-hbtn:hover{background:rgba(255,255,255,0.3);}
+#ai-body{display:flex;flex-direction:column;height:420px;}
+.ai-messages{flex:1;overflow-y:auto;padding:14px 14px 0;display:flex;flex-direction:column;gap:10px;}
+.ai-messages::-webkit-scrollbar{width:4px;}
+.ai-messages::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:2px;}
+.ai-msg{display:flex;gap:8px;animation:msgIn 0.2s ease-out;}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.ai-msg.user{flex-direction:row-reverse;}
+.ai-bubble{
+  max-width:78%;padding:9px 13px;border-radius:12px;font-size:12.5px;line-height:1.5;
+}
+.ai-msg.ai .ai-bubble{background:var(--ai-purple-light);color:#3b0764;border-radius:4px 12px 12px 12px;}
+.ai-msg.user .ai-bubble{background:var(--teal);color:#fff;border-radius:12px 4px 12px 12px;}
+.ai-msg-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px;}
+.ai-msg.ai .ai-msg-icon{background:var(--ai-purple-light);}
+.ai-msg.user .ai-msg-icon{background:var(--teal-light);}
+
+/* AI typing indicator */
+.ai-typing{display:flex;gap:4px;align-items:center;padding:10px 14px;}
+.ai-typing span{width:6px;height:6px;border-radius:50%;background:var(--ai-purple-mid);animation:typing 1.2s ease-in-out infinite;}
+.ai-typing span:nth-child(2){animation-delay:0.2s;}
+.ai-typing span:nth-child(3){animation-delay:0.4s;}
+@keyframes typing{0%,80%,100%{transform:scale(0.7);opacity:0.5;}40%{transform:scale(1);opacity:1;}}
+
+/* Quick suggestion chips */
+.ai-chips{display:flex;gap:5px;flex-wrap:wrap;padding:8px 14px 0;}
+.ai-chip{
+  padding:4px 10px;border-radius:14px;border:1px solid var(--border);
+  background:var(--surface);font-size:11px;font-weight:500;color:var(--text-mid);
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.ai-chip:hover{background:var(--ai-purple-light);border-color:var(--ai-purple-mid);color:var(--ai-purple);}
+
+.ai-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0;}
+.ai-input{
+  flex:1;background:var(--card-alt);border:1px solid var(--border);border-radius:20px;
+  padding:8px 14px;font-size:12px;font-family:var(--ui);outline:none;
+  transition:border-color 0.15s;color:var(--text);
+}
+.ai-input:focus{border-color:var(--ai-purple-mid);box-shadow:0 0 0 2px rgba(124,58,237,0.1);}
+.ai-send-btn{
+  width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--ai-purple),#5b21b6);
+  border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;flex-shrink:0;
+}
+.ai-send-btn:hover{transform:scale(1.1);box-shadow:0 2px 10px rgba(124,58,237,0.4);}
+.ai-send-btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* AI fab when minimized/hidden */
+#ai-fab{
+  position:fixed;bottom:20px;right:24px;width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--ai-purple),#5b21b6);border:none;color:#fff;
+  font-size:22px;cursor:pointer;display:none;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(124,58,237,0.4);transition:all 0.2s;z-index:999;
+}
+#ai-fab:hover{transform:scale(1.1);}
+#ai-fab.show{display:flex;}
+#ai-fab::after{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid rgba(124,58,237,0.4);animation:fabring 2s ease-in-out infinite;}
+@keyframes fabring{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.2);opacity:0;}}
+
+/* ═══ DEMO QUICK LOAD BANNER ═══ */
+.demo-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 13px;border-radius:20px;border:1px dashed var(--teal-mid);
+  background:rgba(42,143,168,0.06);color:var(--teal-dark);font-size:11px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;margin:3px;
+}
+.demo-btn:hover{background:var(--teal);color:#fff;border-color:var(--teal);}
+
+/* ═══ PARTICLE CANVAS ═══ */
+#particle-bg{position:absolute;inset:0;pointer-events:none;opacity:0.35;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP NAV -->
+  <nav id="topnav">
+    <div class="nav-logo" id="nav-logo">
+      <div class="nav-logo-fallback" id="logo-fallback" style="display:none;">🔒 CipherStack</div>
+    </div>
+    <div class="nav-links">
+      <button class="nav-link active">Dashboard</button>
+      <button class="nav-link">Contact</button>
+    </div>
+    <div class="mode-pill" id="mode-pill">
+      <span class="enc-lbl">ENCRYPT</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="mode-toggle" onchange="toggleMode(this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="dec-lbl">DECRYPT</span>
+    </div>
+    <div class="nav-actions">
+      <button class="nav-btn" onclick="resetPipeline()">NEW PIPELINE</button>
+      <button class="nav-btn" onclick="exportPipeline()">SAVE</button>
+      <button class="nav-ai-btn" onclick="toggleAI()">
+        <div class="ai-dot"></div> AI Assistant
+      </button>
+      <div class="tip-wrap">
+        <button class="nav-btn primary" id="run-btn" onclick="runPipeline()" disabled>
+          <span id="run-label">RUN</span>
+        </button>
+        <div class="tip">Need at least 3 cipher nodes</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- BODY ROW -->
+  <div id="body-row">
+
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sb-section">
+        <div class="sb-section-hd">Algorithm Library <button class="sb-add-btn">+</button></div>
+        <div id="algo-list"></div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-ctrl-hd">Pipeline Controls <span style="font-size:15px;color:var(--text-dim);">⚙</span></div>
+      <div class="sb-ctrl-list">
+        <button class="sb-ctrl-btn" id="rt-btn" onclick="runRoundTrip()"><span>🔄</span> Round-Trip Test</button>
+        <button class="sb-ctrl-btn" onclick="undoLast()"><span>↩</span> Undo (Ctrl+Z)</button>
+        <label class="sb-ctrl-btn" style="cursor:pointer;"><span>⬆</span> Import Pipeline<input type="file" accept=".json" style="display:none;" onchange="importPipeline(event)"></label>
+        <button class="sb-ctrl-btn" onclick="exportPipeline()"><span>⬇</span> Export JSON</button>
+      </div>
+    </aside>
+
+    <!-- CENTER CANVAS -->
+    <main id="canvas">
+      <canvas id="particle-bg"></canvas>
+      <div id="node-warning" class="node-warn-bar">⚠ Add at least 3 cipher nodes to run the pipeline</div>
+      <div id="canvas-inner">
+        <div id="pipeline-flow" class="pipeline-flow" style="display:none;"></div>
+        <div id="empty-state">
+          <div class="ei">⛓</div>
+          <h3>Build Your Encryption Pipeline</h3>
+          <p>Click any cipher in the sidebar to start, or try a demo below.</p>
+          <div class="empty-hint">
+            <div class="demo-btn" onclick="loadDemo('classic')">⚡ Classic 3-Cipher</div>
+            <div class="demo-btn" onclick="loadDemo('strong')">🔒 Strong 5-Cipher</div>
+            <div class="demo-btn" onclick="loadDemo('fun')">🎉 Fun Mix</div>
+          </div>
+        </div>
+      </div>
+      <div id="canvas-footer">
+        <div class="encrypt-badge" id="encrypt-badge">Encrypt →</div>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <aside id="right-panel">
+      <div class="rp-section">
+        <div class="rp-hd"><span id="input-panel-title">Input Plaintext</span>
+          <div class="rp-hd-icons"><div class="rp-icon" onclick="copyFinalOutput()" title="Copy">📋</div></div>
+        </div>
+        <textarea class="rp-textarea" id="main-input" placeholder="Enter your plaintext here…" rows="6"></textarea>
+        <button class="rp-clear-btn" onclick="document.getElementById('main-input').value='';STATE.results=[];updateOutputPanel();updateNodeIO();">Clear</button>
+        <div style="clear:both;"></div>
+      </div>
+      <div class="rp-section">
+        <div class="rp-hd">Final Output
+          <div class="rp-hd-icons"><div class="rp-icon" onclick="copyFinalOutput()" title="Copy">🔑</div><div class="rp-icon" onclick="copyFinalOutput()" title="Copy">📋</div></div>
+        </div>
+        <div class="output-field" id="output-box"><span id="out-placeholder" style="font-style:italic;color:var(--text-dim);">Ciphertext will appear here…</span></div>
+        <button class="rp-copy-btn" onclick="copyFinalOutput()">Copy</button>
+        <div id="rt-result" style="display:none;margin-top:8px;"></div>
+      </div>
+      <div class="intermed-hd" onclick="toggleIntermed()">
+        Intermediate Outputs <span class="intermed-chevron open" id="intermed-chev">⌃</span>
+      </div>
+      <div id="intermed-body">
+        <table class="intermed-table">
+          <thead><tr><th>Cipher</th><th>Value</th></tr></thead>
+          <tbody id="intermed-tbody"><tr><td colspan="2" style="color:var(--text-dim);font-family:var(--ui);font-size:12px;padding:12px;">Run pipeline to see outputs</td></tr></tbody>
+        </table>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- AI PANEL -->
+<div id="ai-panel">
+  <div class="ai-header" onclick="toggleAIMinimize()">
+    <div class="ai-avatar">✦</div>
+    <div>
+      <div class="ai-title">CipherStack AI</div>
+      <div class="ai-subtitle">Gemini 2.5 Flash • Ask me anything</div>
+    </div>
+    <div class="ai-header-btns" onclick="event.stopPropagation()">
+      <button class="ai-hbtn" onclick="toggleAIMinimize()" title="Minimize">─</button>
+      <button class="ai-hbtn" onclick="closeAI()" title="Close">✕</button>
+    </div>
+  </div>
+  <div id="ai-body">
+    <div class="ai-messages" id="ai-messages"></div>
+    <div class="ai-chips" id="ai-chips">
+      <div class="ai-chip" onclick="aiChip(this)">Give me a demo text to try</div>
+      <div class="ai-chip" onclick="aiChip(this)">Explain Caesar cipher</div>
+      <div class="ai-chip" onclick="aiChip(this)">Best 3-cipher combo?</div>
+      <div class="ai-chip" onclick="aiChip(this)">What is XOR encryption?</div>
+      <div class="ai-chip" onclick="aiChip(this)">Test my pipeline</div>
+      <div class="ai-chip" onclick="aiChip(this)">Load a strong demo</div>
+    </div>
+    <div class="ai-input-row">
+      <input class="ai-input" id="ai-input" placeholder="Ask about encryption, ciphers, or request a demo…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}">
+      <button class="ai-send-btn" id="ai-send" onclick="sendAI()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI FAB -->
+<button id="ai-fab" onclick="showAI()" title="Open AI Assistant">✦</button>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CIPHER DEFINITIONS — 100% preserved
+// ══════════════════════════════════════════════════════════════════
+const CIPHER_ICONS={caesar:'2',xor:'⊕',vigenere:'✓',railfence:'≡',columnar:'▦',aes:'🔐',base64:'Ba',rot13:'R',reverse:'↔'};
+const CIPHERS={
+  caesar:{id:'caesar',name:'Caesar Shift',description:'Shift alphabet by N',type:'configurable',configSchema:[{key:'shift',label:'Shift amount',type:'number',min:-25,max:25,placeholder:'13'}],defaultConfig:{shift:3},encrypt(i,c){const s=((Number(c.shift)%26)+26)%26;return[...i].map(ch=>{const x=ch.charCodeAt(0);if(x>=65&&x<=90)return String.fromCharCode(((x-65+s)%26)+65);if(x>=97&&x<=122)return String.fromCharCode(((x-97+s)%26)+97);return ch;}).join('');},decrypt(i,c){return CIPHERS.caesar.encrypt(i,{shift:-Number(c.shift)});}},
+  xor:{id:'xor',name:'XOR Cipher',description:'XOR bytes with repeating key → hex',type:'configurable',configSchema:[{key:'key',label:'Hex key',type:'text',placeholder:'secret key'}],defaultConfig:{key:'key'},_toUTF8(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c>=0xD800&&c<=0xDBFF&&i+1<s.length){const lo=s.charCodeAt(i+1);if(lo>=0xDC00&&lo<=0xDFFF){c=0x10000+((c-0xD800)<<10)+(lo-0xDC00);i++;}}if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else if(c<0x10000)b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));else b.push(0xF0|(c>>18),0x80|((c>>12)&0x3F),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;},_fromUTF8(bytes){let s='';for(let i=0;i<bytes.length;){const b=bytes[i];let code,len;if(b<0x80){code=b;len=1;}else if((b&0xE0)===0xC0){code=b&0x1F;len=2;}else if((b&0xF0)===0xE0){code=b&0x0F;len=3;}else{code=b&0x07;len=4;}for(let j=1;j<len;j++)code=(code<<6)|(bytes[i+j]&0x3F);if(code>=0x10000){code-=0x10000;s+=String.fromCharCode(0xD800+(code>>10),0xDC00+(code&0x3FF));}else s+=String.fromCharCode(code);i+=len;}return s;},encrypt(i,c){if(!c.key)throw new Error('XOR key cannot be empty');const kb=CIPHERS.xor._toUTF8(c.key);return CIPHERS.xor._toUTF8(i).map((b,j)=>b^kb[j%kb.length]).map(b=>b.toString(16).padStart(2,'0')).join('');},decrypt(i,c){if(!c.key)throw new Error('XOR key cannot be empty');const kb=CIPHERS.xor._toUTF8(c.key);return CIPHERS.xor._fromUTF8((i.match(/.{1,2}/g)||[]).map((h,j)=>parseInt(h,16)^kb[j%kb.length]));}},
+  vigenere:{id:'vigenere',name:'Vigenère',description:'Polyalphabetic keyword substitution',type:'configurable',configSchema:[{key:'keyword',label:'Keyword',type:'text',placeholder:'Keyword'}],defaultConfig:{keyword:'key'},encrypt(i,c){const kw=(c.keyword||'').toLowerCase().replace(/[^a-z]/g,'');if(!kw)throw new Error('Vigenère keyword must contain letters');let ki=0;return[...i].map(ch=>{const x=ch.charCodeAt(0);if(x>=65&&x<=90){const k=kw.charCodeAt(ki++%kw.length)-97;return String.fromCharCode(((x-65+k)%26)+65);}if(x>=97&&x<=122){const k=kw.charCodeAt(ki++%kw.length)-97;return String.fromCharCode(((x-97+k)%26)+97);}return ch;}).join('');},decrypt(i,c){const kw=(c.keyword||'').toLowerCase().replace(/[^a-z]/g,'');if(!kw)throw new Error('Vigenère keyword must contain letters');let ki=0;return[...i].map(ch=>{const x=ch.charCodeAt(0);if(x>=65&&x<=90){const k=kw.charCodeAt(ki++%kw.length)-97;return String.fromCharCode(((x-65-k+26)%26)+65);}if(x>=97&&x<=122){const k=kw.charCodeAt(ki++%kw.length)-97;return String.fromCharCode(((x-97-k+26)%26)+97);}return ch;}).join('');}},
+  railfence:{id:'railfence',name:'Rail Fence',description:'Zigzag transposition cipher',type:'configurable',configSchema:[{key:'rails',label:'Rails',type:'number',min:2,max:10,placeholder:'3'}],defaultConfig:{rails:3},_pat(len,n){const p=[];let r=0,d=1;for(let i=0;i<len;i++){p.push(r);if(r===0)d=1;else if(r===n-1)d=-1;r+=d;}return p;},encrypt(i,c){const n=Math.max(2,Math.min(10,Math.floor(Number(c.rails)||3)));const chars=[...i];if(n>=chars.length)return i;const f=Array.from({length:n},()=>[]);const pat=CIPHERS.railfence._pat(chars.length,n);chars.forEach((ch,j)=>f[pat[j]].push(ch));return f.flat().join('');},decrypt(i,c){const n=Math.max(2,Math.min(10,Math.floor(Number(c.rails)||3)));const chars=[...i];if(n>=chars.length)return i;const len=chars.length;const pat=CIPHERS.railfence._pat(len,n);const rl=Array(n).fill(0);pat.forEach(r=>rl[r]++);const rails=[];let idx=0;for(let r=0;r<n;r++){rails.push(chars.slice(idx,idx+rl[r]));idx+=rl[r];}const ri=Array(n).fill(0);return pat.map(r=>rails[r][ri[r]++]).join('');}},
+  columnar:{id:'columnar',name:'Columnar',description:'Column-order transposition',type:'configurable',configSchema:[{key:'key',label:'Key',type:'text',placeholder:'ZEBRAS'}],defaultConfig:{key:'ZEBRAS'},_P:'\u0000',encrypt(i,c){const key=(c.key||'KEY').toUpperCase().replace(/[^A-Z]/g,'');if(!key)throw new Error('Key must contain letters');const C=key.length;const pad=(C-(i.length%C))%C;const s=i+CIPHERS.columnar._P.repeat(pad);const R=s.length/C;const ord=[...key].map((ch,j)=>({ch,j})).sort((a,b)=>a.ch<b.ch?-1:a.ch>b.ch?1:0).map(x=>x.j);let out='';for(const col of ord)for(let row=0;row<R;row++)out+=s[row*C+col];return out;},decrypt(i,c){const key=(c.key||'KEY').toUpperCase().replace(/[^A-Z]/g,'');if(!key)throw new Error('Key must contain letters');const C=key.length;const R=Math.ceil(i.length/C);const ord=[...key].map((ch,j)=>({ch,j})).sort((a,b)=>a.ch<b.ch?-1:a.ch>b.ch?1:0).map(x=>x.j);const cols={};let idx=0;for(const col of ord){cols[col]=[...i].slice(idx,idx+R);idx+=R;}let out='';for(let row=0;row<R;row++)for(let col=0;col<C;col++)out+=cols[col][row];return out.replace(/\u0000+$/,'');}},
+  // Real AES-256 via browser's built-in Web Crypto API (window.crypto.subtle)
+  // encrypt/decrypt return Promises — the engine awaits them
+  aes:{
+    id:'aes', name:'AES-256', description:'Real AES-256-CBC via Web Crypto API', type:'configurable',
+    configSchema:[
+      {key:'key', label:'Key (passphrase)', type:'text', placeholder:'my-secret-key'},
+      {key:'mode', label:'Mode', type:'select', options:['CBC','GCM']}
+    ],
+    defaultConfig:{key:'mykey', mode:'CBC'},
+    // Derive a 256-bit AES key from a passphrase using PBKDF2
+    async _deriveKey(passphrase, mode){
+      const enc = new TextEncoder();
+      // Fixed salt derived from passphrase so encryption is deterministic
+      const saltBytes = enc.encode(passphrase.padEnd(16,'0').slice(0,16));
+      const baseKey = await crypto.subtle.importKey(
+        'raw', enc.encode(passphrase), {name:'PBKDF2'}, false, ['deriveKey']
+      );
+      const algoName = mode==='GCM' ? 'AES-GCM' : 'AES-CBC';
+      return crypto.subtle.deriveKey(
+        {name:'PBKDF2', salt:saltBytes, iterations:100000, hash:'SHA-256'},
+        baseKey, {name:algoName, length:256}, false, ['encrypt','decrypt']
+      );
+    },
+    // Fixed IV derived from passphrase — deterministic so decrypt always works
+    _getIV(passphrase, mode){
+      const enc = new TextEncoder();
+      const raw = enc.encode(('iv:'+passphrase).padEnd(32,'x'));
+      // GCM needs 12 bytes, CBC needs 16 bytes
+      return raw.slice(0, mode==='GCM' ? 12 : 16);
+    },
+    async encrypt(input, cfg){
+      if(!cfg.key) throw new Error('AES key cannot be empty');
+      const mode = cfg.mode || 'CBC';
+      const key = await this._deriveKey(cfg.key, mode);
+      const iv = this._getIV(cfg.key, mode);
+      const plainBytes = new TextEncoder().encode(input);
+      const algoName = mode==='GCM' ? 'AES-GCM' : 'AES-CBC';
+      const cipherBuf = await crypto.subtle.encrypt({name:algoName, iv}, key, plainBytes);
+      // Encode as Base64
+      const cipherArr = new Uint8Array(cipherBuf);
+      let bin = '';
+      for(const b of cipherArr) bin += String.fromCharCode(b);
+      return btoa(bin);
+    },
+    async decrypt(input, cfg){
+      if(!cfg.key) throw new Error('AES key cannot be empty');
+      const mode = cfg.mode || 'CBC';
+      let bin;
+      try { bin = atob(input); } catch(e) { throw new Error('AES-256: invalid Base64 input'); }
+      const cipherBytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      const key = await this._deriveKey(cfg.key, mode);
+      const iv = this._getIV(cfg.key, mode);
+      const algoName = mode==='GCM' ? 'AES-GCM' : 'AES-CBC';
+      try {
+        const plainBuf = await crypto.subtle.decrypt({name:algoName, iv}, key, cipherBytes);
+        return new TextDecoder().decode(plainBuf);
+      } catch(e) {
+        throw new Error('AES-256: decryption failed — wrong key or corrupted data');
+      }
+    }
+  },
+  base64:{id:'base64',name:'Base64',description:'Base64 encode/decode',type:'bonus',configSchema:[],defaultConfig:{},encrypt(i){return btoa(String.fromCharCode(...new TextEncoder().encode(i)));},decrypt(i){try{const b=atob(i).split('').map(c=>c.charCodeAt(0));return new TextDecoder().decode(new Uint8Array(b));}catch(e){throw new Error('Base64: invalid input');}}},
+  rot13:{id:'rot13',name:'ROT13',description:'Rotate letters by 13',type:'bonus',configSchema:[],defaultConfig:{},encrypt(i){return[...i].map(ch=>{const c=ch.charCodeAt(0);if(c>=65&&c<=90)return String.fromCharCode(((c-65+13)%26)+65);if(c>=97&&c<=122)return String.fromCharCode(((c-97+13)%26)+97);return ch;}).join('');},decrypt(i){return CIPHERS.rot13.encrypt(i);}},
+  reverse:{id:'reverse',name:'Reverse',description:'Reverse string (emoji-safe)',type:'bonus',configSchema:[],defaultConfig:{},encrypt(i){return[...i].reverse().join('');},decrypt(i){return[...i].reverse().join('');}}
+};
+
+// ══════════════════════════════════════════════════════════════════
+// ENGINE — async to support Web Crypto (AES-256)
+// ══════════════════════════════════════════════════════════════════
+async function engineEncrypt(nodes, pt) {
+  const r = []; let cur = pt;
+  for (const n of nodes) {
+    const c = CIPHERS[n.cipherId];
+    let out = cur, err = null;
+    try { out = await Promise.resolve(c.encrypt(cur, n.config)); }
+    catch(e) { err = e.message; }
+    r.push({nodeId:n.instanceId, input:cur, output:out, error:err});
+    cur = out;
+  }
+  return r;
+}
+async function engineDecrypt(nodes, ct) {
+  const r = []; let cur = ct;
+  for (let i = nodes.length-1; i >= 0; i--) {
+    const n = nodes[i]; const c = CIPHERS[n.cipherId];
+    let out = cur, err = null;
+    try { out = await Promise.resolve(c.decrypt(cur, n.config)); }
+    catch(e) { err = e.message; }
+    r.push({nodeId:n.instanceId, input:cur, output:out, error:err});
+    cur = out;
+  }
+  return r;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+const STATE={nodes:[],mode:'encrypt',results:[],history:[],dragSrc:null};
+function uid(){return Math.random().toString(36).slice(2,10);}
+function saveHist(){STATE.history.push(JSON.stringify(STATE.nodes));if(STATE.history.length>30)STATE.history.shift();}
+
+function addNode(cipherId,silent=false){
+  const c=CIPHERS[cipherId];if(!c)return;
+  saveHist();
+  const newNode={instanceId:uid(),cipherId,config:{...c.defaultConfig}};
+  STATE.nodes.push(newNode);
+  STATE.results=[];render();
+  if(!silent){
+    // flash the new card
+    setTimeout(()=>{const el=document.getElementById('card-'+newNode.instanceId);if(el){el.classList.add('just-added');setTimeout(()=>el.classList.remove('just-added'),400);}},50);
+  }
+}
+
+function removeNode(id){saveHist();STATE.nodes=STATE.nodes.filter(n=>n.instanceId!==id);STATE.results=[];render();}
+function moveNode(idx,dir){const to=idx+dir;if(to<0||to>=STATE.nodes.length)return;saveHist();[STATE.nodes[idx],STATE.nodes[to]]=[STATE.nodes[to],STATE.nodes[idx]];STATE.results=[];render();}
+function undoLast(){if(!STATE.history.length)return;STATE.nodes=JSON.parse(STATE.history.pop());STATE.results=[];render();}
+function resetPipeline(){saveHist();STATE.nodes=[];STATE.results=[];render();}
+
+function updateConfig(id,key,val){
+  const n=STATE.nodes.find(n=>n.instanceId===id);if(!n)return;
+  n.config[key]=val;
+  clearTimeout(updateConfig._t);
+  updateConfig._t=setTimeout(()=>{if(STATE.results.length>0)runPipeline(true);},300);
+}
+
+function toggleMode(isDecrypt){
+  STATE.mode=isDecrypt?'decrypt':'encrypt';STATE.results=[];
+  document.getElementById('mode-pill').classList.toggle('decrypt-mode',isDecrypt);
+  document.getElementById('input-panel-title').textContent=isDecrypt?'Input Ciphertext':'Input Plaintext';
+  document.getElementById('main-input').placeholder=isDecrypt?'Enter ciphertext to decrypt…':'Enter your plaintext here…';
+  document.getElementById('encrypt-badge').textContent=isDecrypt?'← Decrypt':'Encrypt →';
+  updateOutputPanel();renderSummaryTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DEMO PIPELINES
+// ══════════════════════════════════════════════════════════════════
+function loadDemo(name){
+  resetPipeline();
+  const demos={
+    classic:[['caesar',{shift:13}],['xor',{key:'secret'}],['vigenere',{keyword:'cipher'}]],
+    strong:[['aes',{key:'hackathon2025',mode:'CBC'}],['caesar',{shift:7}],['railfence',{rails:4}],['xor',{key:'strongkey'}],['base64',{}]],
+    fun:[['reverse',{}],['rot13',{}],['caesar',{shift:5}],['vigenere',{keyword:'fun'}],['reverse',{}]]
+  };
+  const steps=demos[name]||demos.classic;
+  steps.forEach(([id,cfg])=>{
+    const c=CIPHERS[id];if(!c)return;
+    STATE.nodes.push({instanceId:uid(),cipherId:id,config:{...c.defaultConfig,...cfg}});
+  });
+  // Prefill input
+  document.getElementById('main-input').value='Hello, CipherStack! This is a cascade encryption demo.';
+  render();
+  setTimeout(()=>runPipeline(),100); // runPipeline is async, fire-and-forget here
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PIPELINE EXECUTION
+// ══════════════════════════════════════════════════════════════════
+async function runPipeline(silent=false){
+  const input=document.getElementById('main-input').value;
+  if(STATE.nodes.length<3)return;
+  const btn=document.getElementById('run-btn');
+  const lbl=document.getElementById('run-label');
+  if(!silent){btn.classList.add('running');lbl.textContent='RUNNING…';}
+  try {
+    STATE.results = STATE.mode==='encrypt'
+      ? await engineEncrypt(STATE.nodes,input)
+      : await engineDecrypt(STATE.nodes,input);
+  } catch(e) {
+    console.error('Pipeline error:',e);
+  }
+  updateNodeIO();updateOutputPanel();renderSummaryTable();
+  if(!silent){btn.classList.remove('running');lbl.textContent='RUN';}
+}
+
+async function runRoundTrip(){
+  const input=document.getElementById('main-input').value;
+  if(STATE.nodes.length<3)return;
+  const rtBtn=document.getElementById('rt-btn');
+  rtBtn.disabled=true;
+  try {
+    const enc=await engineEncrypt(STATE.nodes,input);
+    const encOut=enc.length?enc[enc.length-1].output:input;
+    const dec=await engineDecrypt(STATE.nodes,encOut);
+    const decOut=dec.length?dec[dec.length-1].output:encOut;
+    const pass=decOut===input;
+    const el=document.getElementById('rt-result');
+    el.style.display='flex';
+    el.innerHTML=pass
+      ?'<span class="badge badge-pass">✓ PASS — Round-trip verified</span>'
+      :`<span class="badge badge-fail">✗ FAIL — Got: "${escH(decOut.slice(0,25))}"</span>`;
+  } catch(e) {
+    const el=document.getElementById('rt-result');
+    el.style.display='flex';
+    el.innerHTML=`<span class="badge badge-fail">✗ Error: ${escH(e.message)}</span>`;
+  } finally { rtBtn.disabled=false; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════
+function render(){
+  const flow=document.getElementById('pipeline-flow');
+  const empty=document.getElementById('empty-state');
+  const warn=document.getElementById('node-warning');
+  const runBtn=document.getElementById('run-btn');
+  const rtBtn=document.getElementById('rt-btn');
+  empty.style.display=STATE.nodes.length===0?'flex':'none';
+  flow.style.display=STATE.nodes.length===0?'none':'flex';
+  warn.className='node-warn-bar'+(STATE.nodes.length>0&&STATE.nodes.length<3?' show':'');
+  const canRun=STATE.nodes.length>=3;
+  runBtn.disabled=!canRun;rtBtn.disabled=!canRun;
+  document.getElementById('run-label').textContent='RUN';
+  flow.innerHTML='';
+  if(!STATE.nodes.length)return;
+
+  // INPUT terminal
+  const iEl=document.createElement('div');
+  const mainInput=document.getElementById('main-input');
+  const inputPreview=mainInput?trunc(mainInput.value,28):'';
+  iEl.innerHTML=`<div class="input-node"><div class="in-title">↓ Input</div>${inputPreview?`<div class="in-preview">${escH(inputPreview)}</div>`:''}</div>`;
+  flow.appendChild(iEl);
+
+  STATE.nodes.forEach((node,idx)=>{
+    // connector
+    const cv=document.createElement('div');cv.className='connector-wrap';cv.innerHTML=buildConnSVG(idx);flow.appendChild(cv);
+    // card
+    const cipher=CIPHERS[node.cipherId];
+    const r=STATE.results.find(r=>r.nodeId===node.instanceId);
+    const wrapper=document.createElement('div');wrapper.style.cssText='display:flex;flex-direction:column;align-items:center;';
+    const inVal_=r?escH(trunc(r.input,80)):'—';
+    const outVal_=r?escH(trunc(r.output,80)):'—';
+    const hasIn_=!!(r&&r.input);
+    const hasOut_=!!(r&&r.output);
+    const typeLabel_=cipher.type==='configurable'?'cipher':'bonus';
+    const delay_=idx*55;
+    wrapper.innerHTML=`
+      <div class="node-card" id="card-${node.instanceId}"
+        style="--nd:${delay_}ms"
+        draggable="true"
+        ondragstart="onDragStart(event,${idx})" ondragover="onDragOver(event)" ondrop="onDrop(event,${idx})" ondragend="onDragEnd()">
+        <div class="port-in-card"></div>
+        <div class="port-out-card"></div>
+        <div class="node-header">
+          <div class="node-hdr-num">${idx+1}</div>
+          <div class="node-hdr-name">${cipher.name}</div>
+          <div class="node-hdr-type">${typeLabel_}</div>
+          <div class="node-hdr-actions">
+            <button class="node-hdr-btn" onclick="moveNode(${idx},-1)" title="Move up">↑</button>
+            <button class="node-hdr-btn" onclick="moveNode(${idx},1)" title="Move down">↓</button>
+            <button class="node-hdr-btn del" onclick="removeNode('${node.instanceId}')" title="Remove">✕</button>
+          </div>
+        </div>
+        <div class="node-body">
+          ${buildCfgHtml(node,cipher)}
+          <div class="io-section" id="io-section-${node.instanceId}">
+            <div class="io-box${hasIn_?' live':''}" id="in-box-${node.instanceId}">
+              <div class="io-box-label"><span class="io-pip io-pip-in"></span>INPUT</div>
+              <div class="io-box-val" id="in-${node.instanceId}">${inVal_}</div>
+              <button class="io-copy-mini" onclick="event.stopPropagation();copyStepVal('${node.instanceId}','in')">⎘</button>
+            </div>
+            <div class="io-box${hasOut_?' live':''}" id="out-box-${node.instanceId}">
+              <div class="io-box-label"><span class="io-pip io-pip-out"></span>OUTPUT</div>
+              <div class="io-box-val" id="out-${node.instanceId}">${outVal_}</div>
+              <button class="io-copy-mini" onclick="event.stopPropagation();copyStepVal('${node.instanceId}','out')">⎘</button>
+            </div>
+          </div>
+          <div class="node-err" id="err-${node.instanceId}">${r&&r.error?escH(r.error):''}</div>
+        </div>
+      </div>`;
+    flow.appendChild(wrapper);
+    if(r&&r.error){const card=wrapper.querySelector('.node-card');if(card)card.classList.add('has-error');const errEl=wrapper.querySelector('.node-err');if(errEl)errEl.style.display='block';}
+  });
+
+  // final connector + output node
+  const fc=document.createElement('div');fc.className='connector-wrap';fc.innerHTML=buildConnSVG('f');flow.appendChild(fc);
+  const lastR=STATE.results.length?STATE.results[STATE.results.length-1]:null;
+  const fEl=document.createElement('div');
+  fEl.innerHTML=`<div class="final-node"><div class="port-in"></div><div class="fn-title">FINAL OUTPUT</div><div class="fn-vals" id="fn-vals">${lastR?`<div style="font-size:10px;opacity:0.8;">In: ${escH(trunc(lastR.input,14))}</div><div style="font-size:10px;opacity:0.8;">Out: ${escH(trunc(lastR.output,14))}</div>`:'<div style="font-size:10px;opacity:0.6;">Awaiting run…</div>'}</div></div>`;
+  flow.appendChild(fEl);
+  updateOutputPanel();renderSummaryTable();
+}
+
+function buildCfgHtml(node,cipher){
+  if(!cipher.configSchema.length)return '';
+  return '<div class="cfg-block">'+cipher.configSchema.map(f=>{
+    const val=node.config[f.key]!==undefined?node.config[f.key]:'';
+    if(f.type==='select'){
+      return`<div class="cfg-row"><span class="cfg-label-txt">${f.label}</span><select class="cfg-input-select" onchange="updateConfig('${node.instanceId}','${f.key}',this.value)">${f.options.map(o=>`<option value="${o}"${node.config[f.key]===o?' selected':''}>${o}</option>`).join('')}</select></div>`;
+    }
+    if(f.type==='number'&&cipher.id==='caesar'){
+      const pct=(((Number(val)+25)/50)*100).toFixed(1);
+      return`<div class="cfg-label-txt" style="margin-bottom:3px;">${f.label}</div><div class="cfg-slider-row"><input class="cfg-slider" type="range" min="${f.min||0}" max="${f.max||100}" value="${val}" style="--pct:${pct}%" oninput="updateConfig('${node.instanceId}','${f.key}',Number(this.value));this.style.setProperty('--pct',((Number(this.value)-${f.min||0})/(${f.max||100}-${f.min||0})*100).toFixed(1)+'%');document.getElementById('cnum-${node.instanceId}').value=this.value;"><input class="cfg-num-disp" id="cnum-${node.instanceId}" type="number" min="${f.min||0}" max="${f.max||100}" value="${val}" oninput="updateConfig('${node.instanceId}','${f.key}',Number(this.value));"></div>`;
+    }
+    if(f.type==='number'){return`<div class="cfg-row"><span class="cfg-label-txt">${f.label}</span><input class="cfg-input" style="max-width:75px;" type="number" min="${f.min!=null?f.min:''}" max="${f.max!=null?f.max:''}" value="${val}" placeholder="${escH(f.placeholder||'')}" oninput="updateConfig('${node.instanceId}','${f.key}',Number(this.value))"></div>`;}
+    return`<div class="cfg-row"><span class="cfg-label-txt">${f.label}</span></div><input class="cfg-input" type="text" value="${escH(String(val))}" placeholder="${escH(f.placeholder||'')}" oninput="updateConfig('${node.instanceId}','${f.key}',this.value)" style="margin-top:2px;">`;
+  }).join('')+'</div>';
+}
+
+function copyStepVal(instanceId,which){
+  const r=STATE.results.find(r=>r.nodeId===instanceId);
+  if(!r)return;
+  clipCopy(which==='in'?r.input:r.output);
+}
+
+function buildConnSVG(idx){
+  const id='c'+idx;
+  return`<svg class="connector-svg" height="44" viewBox="0 0 320 44">
+    <defs>
+      <marker id="am${id}" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#4db8cc"/>
+      </marker>
+    </defs>
+    <path class="conn-path" d="M 160 0 L 160 44" marker-end="url(#am${id})"/>
+    <circle class="conn-dot-anim" r="4.5">
+      <animateMotion dur="1.3s" repeatCount="indefinite"><mpath href="#mp${id}"/></animateMotion>
+    </circle>
+    <path id="mp${id}" d="M 160 0 L 160 44" fill="none" stroke="none"/>
+  </svg>`;
+}
+
+function updateNodeIO(){
+  const map={};STATE.results.forEach(r=>{map[r.nodeId]=r;});
+  STATE.nodes.forEach((node,staggerIdx)=>{
+    const r=map[node.instanceId];
+    const inEl=document.getElementById('in-'+node.instanceId);
+    const outEl=document.getElementById('out-'+node.instanceId);
+    const inBox=document.getElementById('in-box-'+node.instanceId);
+    const outBox=document.getElementById('out-box-'+node.instanceId);
+    const card=document.getElementById('card-'+node.instanceId);
+    const errEl=document.getElementById('err-'+node.instanceId);
+    if(!inEl||!outEl)return;
+    if(r){
+      // Update text content
+      inEl.textContent=trunc(r.input,80);
+      outEl.textContent=trunc(r.output,80);
+      // Live state on boxes
+      if(inBox){inBox.classList.toggle('live',!!r.input);}
+      if(outBox){
+        outBox.classList.toggle('live',!!r.output);
+        // Animate each box with stagger delay
+        if(r.output){
+          outBox.classList.remove('animating');
+          void outBox.offsetWidth; // reflow
+          outBox.style.animationDelay=(staggerIdx*80)+'ms';
+          outBox.classList.add('animating');
+        }
+      }
+      if(card){
+        card.classList.toggle('has-error',!!r.error);
+        if(!r.error&&r.output){
+          // subtle run-flash on card
+          card.classList.remove('run-flash');
+          void card.offsetWidth;
+          card.style.setProperty('--nd','0ms');
+          card.classList.add('run-flash');
+        }
+      }
+      if(errEl){errEl.textContent=r.error||'';errEl.style.display=r.error?'block':'none';}
+    } else {
+      if(inEl)inEl.textContent='—';
+      if(outEl)outEl.textContent='—';
+      if(inBox)inBox.classList.remove('live');
+      if(outBox){outBox.classList.remove('live','animating');}
+      if(card){card.classList.remove('has-error','run-flash');}
+      if(errEl)errEl.style.display='none';
+    }
+  });
+  const lastR=STATE.results.length?STATE.results[STATE.results.length-1]:null;
+  const fnVals=document.getElementById('fn-vals');
+  if(fnVals){
+    fnVals.innerHTML=lastR
+      ?`<div style="font-size:10px;opacity:0.75;margin-bottom:2px;">In: ${escH(trunc(lastR.input,22))}</div><div style="font-weight:600;font-size:12px;word-break:break-all;">${escH(trunc(lastR.output,40))}</div>`
+      :'<div style="font-size:10px;opacity:0.6;">Awaiting run…</div>';
+  }
+  // Also update the INPUT terminal preview
+  const mainInput=document.getElementById('main-input');
+  const inPreview=document.querySelector('.in-preview');
+  if(inPreview&&mainInput)inPreview.textContent=trunc(mainInput.value,28);
+}
+
+function updateOutputPanel(){
+  const outBox=document.getElementById('output-box');
+  const ph=document.getElementById('out-placeholder');
+  if(STATE.results.length){
+    const last=STATE.results[STATE.results.length-1];
+    outBox.textContent=last.output;
+    outBox.classList.toggle('live',!!last.output);
+  } else {
+    outBox.textContent='';outBox.classList.remove('live');
+    ph.style.display='';outBox.appendChild(ph);
+  }
+}
+
+function renderSummaryTable(){
+  const tbody=document.getElementById('intermed-tbody');
+  if(!STATE.results.length){tbody.innerHTML='<tr><td colspan="2" style="color:var(--text-dim);font-family:var(--ui);font-size:12px;padding:12px;">Run pipeline to see outputs</td></tr>';return;}
+  const ordered=STATE.mode==='decrypt'?[...STATE.results].reverse():STATE.results;
+  tbody.innerHTML=ordered.flatMap(r=>{
+    const n=STATE.nodes.find(n=>n.instanceId===r.nodeId);
+    const name=n?CIPHERS[n.cipherId].name:r.nodeId;
+    return[`<tr><td>${escH(name)}</td><td title="${escH(r.input)}">${escH(trunc(r.input,18))}</td></tr>`,
+           `<tr><td style="color:var(--teal-dark);">Out</td><td title="${escH(r.output)}">${escH(trunc(r.output,18))}</td></tr>`];
+  }).join('');
+}
+
+function toggleIntermed(){
+  const b=document.getElementById('intermed-body');
+  const c=document.getElementById('intermed-chev');
+  const open=b.style.display==='none';
+  b.style.display=open?'flex':'none';c.classList.toggle('open',open);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DRAG & DROP
+// ══════════════════════════════════════════════════════════════════
+function onDragStart(e,idx){STATE.dragSrc=idx;e.dataTransfer.effectAllowed='move';}
+function onDragOver(e){e.preventDefault();}
+function onDrop(e,idx){e.preventDefault();if(STATE.dragSrc===null||STATE.dragSrc===idx)return;saveHist();const m=STATE.nodes.splice(STATE.dragSrc,1)[0];STATE.nodes.splice(idx,0,m);STATE.dragSrc=null;STATE.results=[];render();}
+function onDragEnd(){STATE.dragSrc=null;}
+
+// ══════════════════════════════════════════════════════════════════
+// COPY / EXPORT / IMPORT
+// ══════════════════════════════════════════════════════════════════
+function clipCopy(text,btn){
+  const fb=()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(()=>{if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1400);}}).catch(fb);
+  else{fb();if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1400);}}
+}
+function copyFinalOutput(){const last=STATE.results[STATE.results.length-1];if(!last)return;clipCopy(last.output,document.querySelector('.rp-copy-btn'));}
+function exportPipeline(){const data={version:'1.0',mode:STATE.mode,nodes:STATE.nodes};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cipherstack-pipeline.json';a.click();URL.revokeObjectURL(a.href);}
+function importPipeline(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!d.nodes)throw new Error();saveHist();STATE.nodes=d.nodes.filter(n=>CIPHERS[n.cipherId]);STATE.results=[];if(d.mode){document.getElementById('mode-toggle').checked=d.mode==='decrypt';toggleMode(d.mode==='decrypt');}render();}catch(e){alert('Invalid pipeline file');}ev.target.value='';};r.readAsText(file);}
+
+// ══════════════════════════════════════════════════════════════════
+// SHAREABLE URL
+// ══════════════════════════════════════════════════════════════════
+function saveToUrl(){try{const d={nodes:STATE.nodes,mode:STATE.mode};location.replace('#'+btoa(unescape(encodeURIComponent(JSON.stringify(d)))));}catch(e){}}
+function loadFromUrl(){const h=location.hash.slice(1);if(!h)return false;try{const d=JSON.parse(decodeURIComponent(escape(atob(h))));if(d.nodes)STATE.nodes=d.nodes.filter(n=>CIPHERS[n.cipherId]);if(d.mode)STATE.mode=d.mode;return true;}catch(e){return false;}}
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function trunc(s,len=55){if(s==null)return'';return s.length>len?s.slice(0,len)+'…':s;}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ══════════════════════════════════════════════════════════════════
+// SIDEBAR BUILD
+// ══════════════════════════════════════════════════════════════════
+function buildSidebar(){
+  const list=document.getElementById('algo-list');
+  Object.values(CIPHERS).forEach(c=>{
+    const el=document.createElement('div');el.className='algo-item';
+    el.innerHTML=`<div class="algo-icon">${CIPHER_ICONS[c.id]||'?'}</div><div class="algo-name">${c.name}</div><button class="algo-plus" onclick="event.stopPropagation();addNode('${c.id}')" title="Add">+</button>`;
+    el.addEventListener('click',()=>addNode(c.id));
+    list.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOGO
+// ══════════════════════════════════════════════════════════════════
+function loadLogo(){
+  const container=document.getElementById('nav-logo');
+  const fallback=document.getElementById('logo-fallback');
+  const img=new Image();
+  img.onload=()=>{img.style.cssText='height:42px;object-fit:contain;';container.insertBefore(img,container.firstChild);fallback.style.display='none';};
+  img.onerror=()=>{fallback.style.display='flex';};
+  img.src='https://inovista.co.uk/wp-content/uploads/2026/04/CipherStack-LogoV1.png';
+  img.alt='CipherStack';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PARTICLE BACKGROUND
+// ══════════════════════════════════════════════════════════════════
+function initParticles(){
+  const canvas=document.getElementById('particle-bg');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  let w,h,particles=[];
+  function resize(){w=canvas.width=canvas.offsetWidth;h=canvas.height=canvas.offsetHeight;}
+  resize();window.addEventListener('resize',resize);
+  for(let i=0;i<28;i++){particles.push({x:Math.random()*1200,y:Math.random()*800,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,r:Math.random()*3+1,a:Math.random()*0.5+0.1});}
+  function frame(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(42,143,168,${p.a})`;ctx.fill();
+    });
+    // draw lines between close particles
+    for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<110){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(42,143,168,${0.15*(1-dist/110)})`;ctx.lineWidth=1;ctx.stroke();}
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AI ASSISTANT — Gemini 2.5 Flash Integration
+// Uses v1beta REST API with ?key= in URL (CORS-safe for browsers)
+// Model: gemini-2.5-flash (free tier, up to 500 req/day)
+// ══════════════════════════════════════════════════════════════════
+const GEMINI_KEY = 'AIzaSyCY_OAyE-baRSoJEecKWRCI8--6g7ebNuw';
+// Use gemini-2.5-flash — the current free-tier flagship (2.0-flash deprecated Mar 2026)
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`;
+
+let aiOpen = false;
+let aiMinimized = false;
+let aiHistory = [];
+
+// System instruction as a top-level field (correct Gemini REST format)
+const AI_SYSTEM_TEXT = `You are an expert AI assistant built into CipherStack — a browser-based cascade encryption builder. Be helpful, concise and practical.
+
+Your capabilities:
+1. Explain cryptography concepts (Caesar, XOR, Vigenère, Rail Fence, Columnar, AES, Base64, ROT13, Reverse)
+2. Suggest demo texts and test inputs for users to copy-paste and try
+3. Recommend cipher pipeline combinations for different use cases
+4. Help debug pipeline issues and explain intermediate outputs
+5. Generate interesting sample phrases, secret messages, or quotes for testing
+
+Rules:
+- Keep responses under 150 words unless explaining a concept in depth
+- When suggesting demo text, give the actual string ready to copy (e.g. "Try: The quick brown fox")
+- When asked to load a demo, tell them to click the demo buttons or suggest specific cipher configs
+- Be friendly and enthusiastic about encryption
+- Available ciphers: Caesar Shift, XOR Cipher, Vigenère, Rail Fence, Columnar, AES, Base64, ROT13, Reverse`;
+
+function getPipelineContext() {
+  const names = STATE.nodes.map(n => CIPHERS[n.cipherId].name);
+  const input = (document.getElementById('main-input') || {}).value || '';
+  const ctx = [];
+  if (names.length) ctx.push(`Active pipeline (${names.length} nodes): ${names.join(' → ')}`);
+  else ctx.push('Pipeline is currently empty.');
+  if (input.trim()) ctx.push(`Current input text: "${input.trim().slice(0, 80)}"`);
+  if (STATE.results.length) {
+    const last = STATE.results[STATE.results.length - 1];
+    ctx.push(`Last output: "${String(last.output).slice(0, 60)}"`);
+  }
+  return ctx.join('\n');
+}
+
+async function sendAI(userMsg) {
+  const input = document.getElementById('ai-input');
+  const msg = (userMsg || input.value).trim();
+  if (!msg) return;
+  input.value = '';
+  appendAIMsg('user', msg);
+  showTyping();
+  document.getElementById('ai-send').disabled = true;
+  document.getElementById('ai-chips').style.display = 'none';
+
+  // Build conversation history with live pipeline context injected into first user turn
+  const pipeCtx = getPipelineContext();
+  const firstUserText = `[Context]\n${pipeCtx}\n\n[User message]\n${msg}`;
+
+  // Construct contents array — alternate user/model strictly
+  const contentsToSend = [];
+  if (aiHistory.length === 0) {
+    contentsToSend.push({ role: 'user', parts: [{ text: firstUserText }] });
+  } else {
+    // First turn already has context; subsequent turns just use the message
+    contentsToSend.push(...aiHistory);
+    contentsToSend.push({ role: 'user', parts: [{ text: msg }] });
+  }
+
+  const body = {
+    systemInstruction: { parts: [{ text: AI_SYSTEM_TEXT }] },
+    contents: contentsToSend,
+    generationConfig: {
+      maxOutputTokens: 512,
+      temperature: 0.75,
+      topP: 0.95
+    }
+  };
+
+  try {
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const errMsg = errData?.error?.message || `HTTP ${res.status}`;
+      throw new Error(errMsg);
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      // Check for safety blocks
+      const reason = data.candidates?.[0]?.finishReason;
+      throw new Error(reason === 'SAFETY' ? 'Response blocked by safety filter' : 'Empty response from Gemini');
+    }
+
+    hideTyping();
+    appendAIMsg('ai', text);
+
+    // Update history — keep last 10 exchanges (20 turns)
+    if (aiHistory.length === 0) {
+      aiHistory.push({ role: 'user', parts: [{ text: firstUserText }] });
+    } else {
+      aiHistory.push({ role: 'user', parts: [{ text: msg }] });
+    }
+    aiHistory.push({ role: 'model', parts: [{ text }] });
+    if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
+
+  } catch (e) {
+    hideTyping();
+    let errText = e.message || 'Unknown error';
+
+    if (errText.includes('Failed to fetch') || errText.includes('NetworkError') || errText.includes('CORS')) {
+      errText = '⚠️ **CORS/Network Error**\n\nThe Gemini API cannot be called from a `file://` URL due to browser security rules.\n\n**Fix:** Serve the file over HTTP:\n`python3 -m http.server 8080`\n\nThen open `http://localhost:8080/cipherstack-v5.html`';
+    } else if (errText.includes('API_KEY_INVALID') || errText.includes('403')) {
+      errText = '⚠️ **Invalid API Key** — The Gemini API key may be expired or invalid. Check Google AI Studio.';
+    } else if (errText.includes('429') || errText.includes('RESOURCE_EXHAUSTED')) {
+      errText = '⚠️ **Rate limited** — Free tier quota reached. Wait a minute and try again (free tier: 10 req/min, 500 req/day).';
+    } else if (errText.includes('404') || errText.includes('not found')) {
+      errText = `⚠️ **Model not found** — Trying with gemini-2.0-flash-lite as fallback…`;
+      // Automatic fallback to gemini-2.0-flash-lite
+      setTimeout(() => retryWithFallback(msg), 100);
+      document.getElementById('ai-send').disabled = false;
+      return;
+    } else {
+      errText = `⚠️ **Error:** ${errText}`;
+    }
+    appendAIMsg('ai', errText);
+  }
+
+  document.getElementById('ai-send').disabled = false;
+}
+
+// Fallback: try gemini-2.0-flash-lite if primary model 404s
+async function retryWithFallback(msg) {
+  const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`;
+  try {
+    const pipeCtx = getPipelineContext();
+    const body = {
+      systemInstruction: { parts: [{ text: AI_SYSTEM_TEXT }] },
+      contents: [{ role: 'user', parts: [{ text: `[Context]\n${pipeCtx}\n\n[User message]\n${msg}` }] }],
+      generationConfig: { maxOutputTokens: 512, temperature: 0.75 }
+    };
+    const res = await fetch(fallbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('Fallback failed: HTTP ' + res.status);
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+    appendAIMsg('ai', '*(using gemini-2.0-flash-lite)*\n\n' + text);
+  } catch (e) {
+    appendAIMsg('ai', '⚠️ Both models failed. Please check your API key and network connection.');
+  }
+  document.getElementById('ai-send').disabled = false;
+}
+
+function appendAIMsg(role,text){
+  const msgs=document.getElementById('ai-messages');
+  const div=document.createElement('div');div.className='ai-msg '+role;
+  // Format markdown-ish: bold, code
+  let html=escH(text)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`(.*?)`/g,'<code style="background:rgba(124,58,237,0.1);padding:1px 4px;border-radius:3px;font-family:var(--mono);">$1</code>')
+    .replace(/\n/g,'<br>');
+  div.innerHTML=`<div class="ai-msg-icon">${role==='ai'?'✦':'👤'}</div><div class="ai-bubble">${html}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+let typingEl=null;
+function showTyping(){
+  if(typingEl)return;
+  const msgs=document.getElementById('ai-messages');
+  typingEl=document.createElement('div');typingEl.className='ai-msg ai';
+  typingEl.innerHTML=`<div class="ai-msg-icon">✦</div><div class="ai-bubble"><div class="ai-typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(typingEl);msgs.scrollTop=msgs.scrollHeight;
+}
+function hideTyping(){if(typingEl){typingEl.remove();typingEl=null;}}
+
+function aiChip(el){sendAI(el.textContent);}
+
+function toggleAI(){
+  if(!aiOpen){showAI();}else{closeAI();}
+}
+function showAI(){
+  aiOpen=true;aiMinimized=false;
+  document.getElementById('ai-panel').classList.remove('hidden','minimized');
+  document.getElementById('ai-fab').classList.remove('show');
+  // Welcome message on first open
+  const msgs=document.getElementById('ai-messages');
+  if(!msgs.children.length){
+    appendAIMsg('ai',"✦ Hi! I'm **CipherStack AI**, powered by **Gemini 2.5 Flash**.\n\nI can help you:\n• Generate demo texts to test your pipeline\n• Explain how any cipher works\n• Recommend cipher combinations\n• Run round-trip correctness checks\n\n💡 *Note: If you see a CORS error, serve this file via `python3 -m http.server 8080` and open `http://localhost:8080`*\n\nWhat would you like to try?");
+  }
+}
+function closeAI(){
+  aiOpen=false;
+  document.getElementById('ai-panel').classList.add('hidden');
+  setTimeout(()=>document.getElementById('ai-fab').classList.add('show'),300);
+}
+function toggleAIMinimize(){
+  aiMinimized=!aiMinimized;
+  document.getElementById('ai-panel').classList.toggle('minimized',aiMinimized);
+  document.getElementById('ai-body').style.display=aiMinimized?'none':'flex';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();runPipeline();}
+  if(e.ctrlKey&&e.key==='z'&&!e.target.matches('input,textarea,select')){e.preventDefault();undoLast();}
+  if(e.key==='Escape'){closeAI();}
+});
+document.getElementById('main-input').addEventListener('input',()=>{
+  clearTimeout(window._lpT);
+  window._lpT=setTimeout(()=>{if(STATE.nodes.length>=3)runPipeline(true);},300);
+});
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+loadLogo();
+buildSidebar();
+const restored=loadFromUrl();
+if(restored&&STATE.mode==='decrypt'){document.getElementById('mode-toggle').checked=true;toggleMode(true);}
+render();
+initParticles();
+setInterval(saveToUrl,3000);
+
+// Show AI fab after 1.5s
+setTimeout(()=>{
+  if(!aiOpen)document.getElementById('ai-fab').classList.add('show');
+},1500);
+</script>
+</body>
+</html>
